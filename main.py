@@ -16,7 +16,7 @@ BOT_TOKEN = os.environ.get("TOKEN", "8561778753:AAH67ygxhEwsmxtrll9WkDaN2BX0sCD-
 # IDs o @username de los canales donde publicar
 # Ejemplo: ["-1001234567890", "@micanalpublico"]
 CANALES = [
-    "@tu_canal_aqui",
+    "-1003954695283",
 ]
 
 # Horario permitido para publicar (hora local UTC)
