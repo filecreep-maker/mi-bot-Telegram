@@ -1,116 +1,157 @@
 import os
+import random
+import asyncio
 import logging
-from telegram import Update, ChatPermissions
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from datetime import datetime, time
+from telegram import Bot
+from telegram.error import TelegramError
 
-logging.basicConfig(level=logging.INFO)
+# ─────────────────────────────────────────
+#  CONFIGURACIÓN  ← edita solo esta sección
+# ─────────────────────────────────────────
 
-TOKEN = os.environ.get("TOKEN")
+# Token del bot (ponlo en Variables de Railway, no aquí en duro)
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "TU_TOKEN_AQUI")
 
-suscriptores = []
+# IDs o @username de los canales donde publicar
+# Ejemplo: ["-1001234567890", "@micanalpublico"]
+CANALES = [
+    "@tu_canal_aqui",
+]
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "¡Hola! Soy tu bot 🤖\n\n"
-        "Comandos disponibles:\n"
-        "/start - Iniciar\n"
-        "/ayuda - Ayuda\n"
-        "/suscribir - Recibir notificaciones\n"
-        "/info - Información\n"
-        "/reglas - Ver reglas del grupo\n"
-        "/contacto - Contacto"
+# Horario permitido para publicar (hora local UTC)
+HORA_INICIO = time(8, 0)   # 08:00
+HORA_FIN    = time(23, 0)  # 23:00
+
+# Cantidad de publicaciones por día (se elige al azar entre estos valores)
+MIN_POSTS = 8
+MAX_POSTS = 15
+
+# ── Fotos ──
+# URLs raw de GitHub. Formato:
+# https://raw.githubusercontent.com/USUARIO/REPO/main/CARPETA/archivo.jpg
+FOTOS = [
+    "https://raw.githubusercontent.com/TU_USUARIO/mi-bot-Telegram/main/images/foto1.jpg",
+    "https://raw.githubusercontent.com/TU_USUARIO/mi-bot-Telegram/main/images/foto2.jpg",
+    "https://raw.githubusercontent.com/TU_USUARIO/mi-bot-Telegram/main/images/foto3.jpg",
+    "https://raw.githubusercontent.com/TU_USUARIO/mi-bot-Telegram/main/images/foto4.jpg",
+    "https://raw.githubusercontent.com/TU_USUARIO/mi-bot-Telegram/main/images/foto5.jpg",
+]
+
+# ── Textos (caption de cada foto) ──
+TEXTOS = [
+    "✨ Texto de ejemplo 1 — edítalo a tu gusto.",
+    "🔥 Texto de ejemplo 2 — ponle tu mensaje aquí.",
+    "💡 Texto de ejemplo 3 — el que quieras.",
+    "🚀 Texto de ejemplo 4 — personalízalo.",
+    "🎯 Texto de ejemplo 5 — otro mensaje.",
+    "🌟 Texto de ejemplo 6 — el que necesites.",
+    "💎 Texto de ejemplo 7 — agrega los tuyos.",
+    "📢 Texto de ejemplo 8 — sigue sumando.",
+]
+
+# ─────────────────────────────────────────
+#  LÓGICA DEL BOT  (no necesitas editar)
+# ─────────────────────────────────────────
+
+logging.basicConfig(
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
+
+
+def segundos_hasta(t: time) -> float:
+    """Segundos que faltan hasta la próxima ocurrencia de la hora t (UTC)."""
+    ahora = datetime.utcnow()
+    objetivo = ahora.replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
+    if objetivo <= ahora:
+        # ya pasó hoy → mañana
+        from datetime import timedelta
+        objetivo += timedelta(days=1)
+    return (objetivo - ahora).total_seconds()
+
+
+def generar_horario() -> list[float]:
+    """
+    Genera N timestamps (segundos desde epoch UTC) dentro del
+    horario permitido para HOY, distribuidos aleatoriamente.
+    """
+    n = random.randint(MIN_POSTS, MAX_POSTS)
+    ahora = datetime.utcnow()
+
+    inicio_dt = ahora.replace(
+        hour=HORA_INICIO.hour, minute=HORA_INICIO.minute, second=0, microsecond=0
+    )
+    fin_dt = ahora.replace(
+        hour=HORA_FIN.hour, minute=HORA_FIN.minute, second=0, microsecond=0
     )
 
-async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📌 Puedo ayudarte con:\n"
-        "- Responder preguntas frecuentes\n"
-        "- Moderar el grupo\n"
-        "- Enviarte notificaciones\n\n"
-        "Escríbeme cualquier pregunta."
-    )
+    ventana = (fin_dt - inicio_dt).total_seconds()
+    if ventana <= 0:
+        logger.warning("Ventana horaria inválida, usando todo el día.")
+        ventana = 86400
 
-async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("ℹ️ Este bot fue creado para gestionar y moderar el grupo.")
+    offsets = sorted(random.uniform(0, ventana) for _ in range(n))
+    return [inicio_dt.timestamp() + off for off in offsets]
 
-async def reglas(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📜 Reglas del grupo:\n"
-        "1. Sé respetuoso\n"
-        "2. No spam\n"
-        "3. No contenido inapropiado\n"
-        "4. Sigue las instrucciones del admin"
-    )
 
-async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📩 Contáctanos en: @tu_usuario")
-
-async def suscribir(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in suscriptores:
-        suscriptores.append(user_id)
-        await update.message.reply_text("✅ Suscrito a notificaciones.")
-    else:
-        await update.message.reply_text("Ya estás suscrito.")
-
-async def notificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    mensaje = " ".join(context.args)
-    if not mensaje:
-        await update.message.reply_text("Uso: /notificar Tu mensaje aquí")
-        return
-    for user_id in suscriptores:
-        try:
-            await context.bot.send_message(chat_id=user_id, text=f"🔔 Notificación:\n{mensaje}")
-        except:
-            pass
-    await update.message.reply_text(f"✅ Notificación enviada a {len(suscriptores)} usuarios.")
-
-async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.reply_to_message:
-        user = update.message.reply_to_message.from_user
-        await context.bot.ban_chat_member(update.effective_chat.id, user.id)
-        await update.message.reply_text(f"🚫 {user.first_name} fue baneado.")
-    else:
-        await update.message.reply_text("Responde al mensaje de un usuario para banearlo.")
-
-async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.reply_to_message:
-        user = update.message.reply_to_message.from_user
-        await context.bot.restrict_chat_member(
-            update.effective_chat.id, user.id,
-            permissions=ChatPermissions(can_send_messages=False)
+async def publicar(bot: Bot, canal: str, foto_url: str, texto: str):
+    """Envía una foto con caption a un canal."""
+    try:
+        await bot.send_photo(
+            chat_id=canal,
+            photo=foto_url,
+            caption=texto,
+            parse_mode="HTML",
         )
-        await update.message.reply_text(f"🔇 {user.first_name} fue silenciado.")
-    else:
-        await update.message.reply_text("Responde al mensaje de un usuario para silenciarlo.")
+        logger.info(f"✅ Publicado en {canal}")
+    except TelegramError as e:
+        logger.error(f"❌ Error al publicar en {canal}: {e}")
 
-async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    texto = update.message.text.lower()
-    if "hola" in texto:
-        await update.message.reply_text("¡Hola! 👋 ¿En qué puedo ayudarte?")
-    elif "precio" in texto:
-        await update.message.reply_text("💰 Para precios escribe /contacto")
-    elif "gracias" in texto:
-        await update.message.reply_text("¡De nada! 😊 Aquí estoy para lo que necesites.")
-    else:
-        await update.message.reply_text("No entendí tu mensaje. Escribe /ayuda para ver los comandos disponibles.")
+
+async def ciclo_diario(bot: Bot):
+    """Ejecuta el ciclo de un día completo."""
+    horario = generar_horario()
+    logger.info(f"📅 Hoy se publicarán {len(horario)} veces.")
+
+    for ts in horario:
+        espera = ts - datetime.utcnow().timestamp()
+        if espera > 0:
+            logger.info(f"⏳ Próxima publicación en {espera/60:.1f} minutos.")
+            await asyncio.sleep(espera)
+
+        foto  = random.choice(FOTOS)
+        texto = random.choice(TEXTOS)
+
+        for canal in CANALES:
+            await publicar(bot, canal, foto, texto)
+            await asyncio.sleep(1)  # pausa entre canales
+
+
+async def main():
+    bot = Bot(token=BOT_TOKEN)
+
+    # Verificar conexión
+    me = await bot.get_me()
+    logger.info(f"🤖 Bot conectado: @{me.username}")
+
+    while True:
+        ahora = datetime.utcnow().time()
+
+        # Si aún no llegó la hora de inicio, esperar
+        if ahora < HORA_INICIO:
+            espera = segundos_hasta(HORA_INICIO)
+            logger.info(f"🕐 Esperando inicio del día en {espera/60:.1f} min.")
+            await asyncio.sleep(espera)
+
+        await ciclo_diario(bot)
+
+        # Esperar hasta el inicio del día siguiente
+        espera = segundos_hasta(HORA_INICIO)
+        logger.info(f"🌙 Día completado. Próximo ciclo en {espera/3600:.1f} horas.")
+        await asyncio.sleep(espera)
+
 
 if __name__ == "__main__":
-    if not TOKEN:
-        raise ValueError("❌ No se encontró la variable de entorno TOKEN")
-
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("ayuda", ayuda))
-    app.add_handler(CommandHandler("info", info))
-    app.add_handler(CommandHandler("reglas", reglas))
-    app.add_handler(CommandHandler("contacto", contacto))
-    app.add_handler(CommandHandler("suscribir", suscribir))
-    app.add_handler(CommandHandler("notificar", notificar))
-    app.add_handler(CommandHandler("ban", ban))
-    app.add_handler(CommandHandler("mute", mute))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
-
-    print("🤖 Bot iniciado...")
-    app.run_polling()
+    asyncio.run(main())
