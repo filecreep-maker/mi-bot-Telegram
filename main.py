@@ -3,7 +3,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from datetime import time
 import asyncio
 
-TOKEN = "8561778753:AAH67ygxhEwsmxtrll9WkDaN2BX0sCD-lzo"
+import os
+TOKEN = os.environ.get("8561778753:AAH67ygxhEwsmxtrll9WkDaN2BX0sCD-lzo")
 
 suscriptores = []
 
