@@ -1,0 +1,5 @@
+[phases.setup]
+nixPkgs = ["python311"]
+
+[start]
+cmd = "pip install --no-cache-dir python-telegram-bot==20.7 && python main.py"
