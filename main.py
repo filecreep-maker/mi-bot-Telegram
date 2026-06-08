@@ -91,4 +91,27 @@ async def responder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "precio" in texto:
         await update.message.reply_text("💰 Para precios escribe /contacto")
     elif "gracias" in texto:
-        await update
+        await update.message.reply_text("¡De nada! 😊 Aquí estoy para lo que necesites.")
+    else:
+        await update.message.reply_text("No entendí tu mensaje. Escribe /ayuda para ver los comandos disponibles.")
+
+# ✅ INICIO DEL BOT
+if __name__ == "__main__":
+    if not TOKEN:
+        raise ValueError("❌ No se encontró la variable de entorno TOKEN")
+
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("ayuda", ayuda))
+    app.add_handler(CommandHandler("info", info))
+    app.add_handler(CommandHandler("reglas", reglas))
+    app.add_handler(CommandHandler("contacto", contacto))
+    app.add_handler(CommandHandler("suscribir", suscribir))
+    app.add_handler(CommandHandler("notificar", notificar))
+    app.add_handler(CommandHandler("ban", ban))
+    app.add_handler(CommandHandler("mute", mute))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, responder))
+
+    print("🤖 Bot iniciado...")
+    app.run_polling()
