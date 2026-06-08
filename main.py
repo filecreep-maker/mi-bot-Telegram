@@ -11,7 +11,7 @@ from telegram.error import TelegramError
 # ─────────────────────────────────────────
 
 # Token del bot (ponlo en Variables de Railway, no aquí en duro)
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "TU_TOKEN_AQUI")
+BOT_TOKEN = os.environ.get("TOKEN", "8561778753:AAH67ygxhEwsmxtrll9WkDaN2BX0sCD-lzo")
 
 # IDs o @username de los canales donde publicar
 # Ejemplo: ["-1001234567890", "@micanalpublico"]
