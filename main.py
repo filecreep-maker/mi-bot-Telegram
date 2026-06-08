@@ -4,7 +4,7 @@ from datetime import time
 import asyncio
 
 import os
-TOKEN = os.environ.get("8561778753:AAH67ygxhEwsmxtrll9WkDaN2BX0sCD-lzo")
+TOKEN = os.environ.get("TOKEN")
 
 suscriptores = []
 
